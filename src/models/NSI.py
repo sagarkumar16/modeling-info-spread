@@ -1,5 +1,5 @@
 import numpy as np
-from utils import ModelOutput
+#from .channel import Channel
 from tqdm import tqdm
 from tqdm.notebook import tqdm as tqdm_nb
 import random
@@ -12,6 +12,7 @@ Noisy Susceptible Infected Model as implemented in the paper.
 -- Sagar Kumar, 2024
 """
 
+#### Functions ####
 
 def di(infected: np.ndarray,
         beta: float,
@@ -45,6 +46,23 @@ def error_message(m: int,
     m_out = np.random.choice(range(P.shape[0]), p=P[m])
 
     return m_out
+
+
+class ModelOutput:
+
+    def __init__(self,
+                 infected: list[np.ndarray]) -> None:
+
+        entropy: list[float] = list()
+
+        for state in infected:
+            d = state / sum(state)
+            p = d[d > 0]
+            h = -1 * np.sum(p * np.log2(p))
+            entropy.append(h)
+
+        self.H = entropy
+        self.I = infected
 
 
 class NSI:
@@ -84,7 +102,7 @@ class NSI:
 
         if seedI is None:
             seed = np.zeros(self.P.shape[0])
-            seed[0][0] = 1 / self.N  # seed one node with message 0
+            seed[0] = 1 / self.N  # seed one node with message 0
             inf: list[np.ndarray] = [seed]
 
         else:
@@ -128,7 +146,7 @@ class NSI:
 
         if seedI is None:
             seed: np.ndarray = np.zeros(self.P.shape[0])
-            seed[0][0] = 1  # seed one node with message 0
+            seed[0] = 1  # seed one node with message 0
 
         else:
             seed: np.ndarray = seedI
