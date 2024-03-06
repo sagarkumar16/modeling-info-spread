@@ -12,7 +12,8 @@ Noisy Susceptible Infected Model as implemented in the paper.
 -- Sagar Kumar, 2024
 """
 
-#### Functions ####
+""" Functions """
+
 
 def di(infected: np.ndarray,
         beta: float,
@@ -30,7 +31,7 @@ def di(infected: np.ndarray,
     :return: Infection vector at time t + 1
     """
 
-    return beta * k * (1-sum(infected)) * P@infected
+    return beta * k * (1-sum(infected)) * P.T@infected
 
 
 def error_message(m: int,
@@ -46,6 +47,9 @@ def error_message(m: int,
     m_out = np.random.choice(range(P.shape[0]), p=P[m])
 
     return m_out
+
+
+""" Classes """
 
 
 class ModelOutput:
@@ -155,16 +159,16 @@ class NSI:
 
         # setting seed(s)
         for d, seed_count in enumerate(seed):
-            for _ in seed_count:
+            for _ in range(int(seed_count)):
                 node = random.randint(0, self.N - 1)
                 population_dictionary[node] = d
 
         # progress bar
         if pbar_on:
             if notebook:
-                pbar = tqdm(range(self.T))
-            else:
                 pbar = tqdm_nb(range(self.T))
+            else:
+                pbar = tqdm(range(self.T))
         else:
             pbar = range(self.T)
 
@@ -192,7 +196,7 @@ class NSI:
                         ni_state = population_dictionary[ni]
 
                         if ni_state < 0:
-                            population_dictionary[ni] = error_message(n_state, e)
+                            population_dictionary[ni] = error_message(n_state, self.P)
 
                         else:
                             pass
@@ -203,13 +207,18 @@ class NSI:
             cts = Counter(population_dictionary.values())
 
             for x in cts.keys():
-                it[x] = cts[x]
+                if x != -1:
+                    it[x] = cts[x]
 
             inf.append(it)
+            
+        if density:
+            inf = [i/self.N for i in inf]
 
         out = ModelOutput(infected=inf)
 
         return out
+    
 
 
 

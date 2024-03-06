@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.special import comb
-
+from typing import List
 
 """
 Channels to use in the Noisy Susceptible-Infected Model. Still under construction. 
@@ -52,6 +52,21 @@ def single_flip_channel(m: int,
     polygon = poly_gen(m) * e / m
 
     return selfloops + polygon
+
+def bin_asym_channel(e0: float,
+                     e1: float) -> np.ndarray:
+    
+    """
+    Creates a 1 bit Binary Asymmetric Channel 
+    
+    :param e0: error (probability of departing from original message) of 0 state
+    :param e1: error (probability of departing from original message) of 1 state
+    
+    """
+    
+    M = np.array([[1-e0, e0], [e1, 1-e1]])
+    
+    return M
 
 
 def n_flip_channel(m: int, 
@@ -105,8 +120,43 @@ def n_flip_channel(m: int,
     return Q
 
 
+def star_channel(n: int,
+                 e: float) -> np.ndarray:
 
-        
+    """
+    Generate a star-shaped channel (one node with n-1 degree) where the hub node is message 0.
+    Error of dparting is the same for hub and spokes.
+
+    :param n: number of nodes/messages
+    :param e: error (probability of departing from original message)
+    """
+
+    err = 1/(n-1)
+
+    hub_probs: np.ndarray = np.array([1-err] + [err]*(n-1))
+    spoke_probs: list = list()
+
+    for i in range(1,n):
+        i_probs: np.ndarray = np.array([err] + [0]*(n-1))
+        i_probs[i] = 1 - err
+        spoke_probs.append(i_probs)
+
+    all_probs = [hub_probs] + spoke_probs
+    Q: np.ndarray = np.concatenate(all_probs)
+
+    return Q
+
+# def lattice(h: int,
+#             e: float) -> np.ndarray:
+#
+#     """
+#     Generate a lattice-shaped channel of height enad width h initial node is in the center.
+#     Error of dparting is the same for hub and spokes.
+#
+#     :param n: number of nodes/messages
+#     :param e: error (probability of departing from original message)
+#     """
+
         
 
 # class Channel:

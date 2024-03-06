@@ -5,7 +5,5 @@
 Sphinx
 python-dotenv>=0.5.1
 numpy
-random
 tqdm
-collections
-scipy00
+scipy
