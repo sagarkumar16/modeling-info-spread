@@ -1,9 +1,7 @@
 import numpy as np
-#from .channel import Channel
 from tqdm import tqdm
 from tqdm.notebook import tqdm as tqdm_nb
 import random
-from collections import Counter, defaultdict
 
 from typing import List, Tuple, Dict
 
@@ -13,29 +11,14 @@ Noisy Susceptible Infected Model as implemented in the paper.
 -- Sagar Kumar, 2024
 """
 
-""" Functions """
-
-def count_faster(l):
-    
-    dic = {}
-    
-    for i in l:
-        
-        if i in dic.keys():
-            dic[i] += 1
-            
-        else:
-            dic[i] = 1
-    
-    return [(key, dic[key]) for key in dic.keys()]
+""" Helper Functions """
 
 
 def di(infected: np.ndarray,
-        beta: float,
-        k: float,
-        P: np.ndarray
+       beta: float,
+       k: float,
+       P: np.ndarray
        ) -> np.ndarray:
-
     """
     dI/dt for a vector of infected population I.
 
@@ -46,12 +29,11 @@ def di(infected: np.ndarray,
     :return: Infection vector at time t + 1
     """
 
-    return beta * k * (1-sum(infected)) * P.T@infected
+    return beta * k * (1 - sum(infected)) * P.T @ infected
 
 
 def error_message(m: int,
                   P: np.ndarray) -> int:
-
     """
     Replicates communcation over a discrete noisy channel by taking in the index for a messsage strain \
     and outputs a new one based on the channel.
@@ -71,7 +53,6 @@ class ModelOutput:
 
     def __init__(self,
                  infected: List[np.ndarray]) -> None:
-
         entropy: List[float] = list()
 
         for state in infected:
@@ -127,8 +108,6 @@ class NSI:
         else:
             inf: List[np.ndarray] = [seedI]
 
-        entropy: List[float] = list()
-
         for t in range(1, self.T):
             infected = inf[t - 1]
 
@@ -138,15 +117,15 @@ class NSI:
 
         return out
 
-    def homogeneous_simulations(self,
-                                beta: float,
-                                k: int,
-                                dirpath: str,
-                                seedI: np.ndarray = None,
-                                density: bool = True,
-                                track_comm: bool = False,
-                                pbar_on: bool = True,
-                                notebook: bool = False) -> ModelOutput or Tuple[ModelOutput, dict]:
+    def homogeneous_simulation(self,
+                               beta: float,
+                               k: int,
+                               filepath: str = None,
+                               seedI: np.ndarray = None,
+                               density: bool = True,
+                               track_comm: bool = False,
+                               pbar_on: bool = True,
+                               notebook: bool = False) -> None or ModelOutput or Tuple[ModelOutput, dict]:
 
         """
         Runs the homogeneous population simulation of the NSI model as described in the paper.
@@ -155,7 +134,7 @@ class NSI:
 
         :param beta: transmissibility
         :param k: average degree
-        :param dirpath: directory to store simulation results
+        :param filepath: File to store simulation results. If none provided, no file is written. (Default = None)
         :param seedI: seed distribution (default 1 in message 0).
         :param density: Output infected vectors as fractions of the population
         :param track_comm: track successful communications
@@ -163,7 +142,7 @@ class NSI:
         :param notebook: if pbar_on is True, indicates whether to use the notebook implementation of tqdm
         :return: infected vectors at each time step
         """
-        
+
         # mutable dictionary of the state/message received by each node
         population_dictionary: Dict[int, int] = {n: -1 for n in range(self.N)}
 
@@ -175,8 +154,8 @@ class NSI:
             seed: np.ndarray = seedI
 
         inf: List[np.ndarray] = [seed]
-            
-        # intialize list to successful communications
+
+        # initialize list to successful communications
         comms = {n: [] for n in range(self.N)}
 
         # setting seed(s)
@@ -184,7 +163,7 @@ class NSI:
             for _ in range(int(seed_count)):
                 node = random.randint(0, self.N - 1)
                 population_dictionary[node] = d
-                comms[node].append((node,d))
+                comms[node].append((node, d))
 
         # progress bar
         if pbar_on:
@@ -196,12 +175,11 @@ class NSI:
             pbar = range(self.T)
 
         # running simulation
-        for t in pbar:
+        for _ in pbar:
 
-            it = np.array([0]*self.P.shape[0])
+            # initialized array
+            it = np.array([0] * self.P.shape[0])
 
-            # time step updates
-            
             # infected nodes
             valid_nodes = np.array([node for node in population_dictionary.keys() if population_dictionary[node] != -1])
 
@@ -240,30 +218,42 @@ class NSI:
                     else:
                         pass
 
-            cts = np.bincount(list(population_dictionary.values()))
+            # bincount doesn't like negative values, so we shift everything up by one
+            shifted_states = np.array(list(population_dictionary.values())) + np.ones(len(population_dictionary),
+                                                                                      dtype=np.uint8)
+            cts = np.bincount(shifted_states, minlength=self.P.shape[0] + 1)
 
-            for idx,x in enumerate(cts):
-                if x != -1:
-                    it[idx] = x
+            for idx, x in enumerate(cts[0:]):
+                it[idx - 1] = x  # ignoring 0 (which used to be -1), shifting back down, and assigning count
 
             inf.append(it)
 
         if density:
-            inf = [i/self.N for i in inf]
+            inf = [i / self.N for i in inf]
 
         out = ModelOutput(infected=inf)
-        
+
+        if filepath is not None:
+            np.savez_compressed(filepath + ".npz", inf)
+
         if track_comm:
-            return out,comms
-        
+            return out, comms
+
         else:
             return out
-        
-        
-
-    
 
 
+""" Class-Dependent Functions """
 
 
+def load_sim(filepath) -> ModelOutput:
+    """
+    Loads compressed numpy array output from NSI.homogeneous_simulation() into a ModelOutput class.
 
+    :param filepath: Compressed numpy file to read with infection densities.
+    :return: ModelOutput object with standard attributes.
+    """
+
+    inf = np.load(filepath)
+
+    return ModelOutput(infected=inf)

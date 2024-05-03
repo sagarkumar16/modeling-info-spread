@@ -46,12 +46,15 @@ def single_flip_channel(m: int,
 
     :param m: hypercube dim/message length
     :param e: error (probability of departing from original message)
+
+    :return: Numpy array of transition probabilities
     """
 
     selfloops = np.eye(2 ** m) * (1 - e)
     polygon = poly_gen(m) * e / m
 
     return selfloops + polygon
+
 
 def bin_asym_channel(e0: float,
                      e1: float) -> np.ndarray:
@@ -61,7 +64,8 @@ def bin_asym_channel(e0: float,
     
     :param e0: error (probability of departing from original message) of 0 state
     :param e1: error (probability of departing from original message) of 1 state
-    
+
+    :return: Numpy array of transition probabilities
     """
     
     M = np.array([[1-e0, e0], [e1, 1-e1]])
@@ -80,6 +84,8 @@ def n_flip_channel(m: int,
 
     :param m: hypercube dim/message length
     :param e: error (probability of departing from original message)
+
+    :return: Numpy array of transition probabilities
     """
 
     def generate_ith_row_pascal(i: int) -> list:
@@ -88,13 +94,13 @@ def n_flip_channel(m: int,
         Triangle using inbuilt functions in python.'
 
         :param i: row number
-        :return: list
+        :return: list with number of messages d steps away for each index d
         """
         return [int(comb(i, j)) for j in range(i + 1)]
 
     mcube: np.ndarray = poly_gen(m)
 
-    arrays: list[np.ndarray] = list()
+    arrays: List[np.ndarray] = list()
 
     # number of message distance d away for an m-dim hypercube corresponds to the mth row in pascals triangle
     errors: list = np.roots(generate_ith_row_pascal(m)[:-1] + [-1*e])
@@ -107,14 +113,14 @@ def n_flip_channel(m: int,
 
     for d in range(m):
         mpower = np.linalg.matrix_power(mcube, d + 1)
-        binary_arr = (mpower != 0).astype(int)
+        binary_arr = (mpower != 0)*1
         arrays.append(error ** (d + 1) * binary_arr)
 
     Q: np.ndarray = np.eye(2 ** m) * (1 - e)
 
     # applying errors to each value based on distance by raising the adjacency to some power and
     for arr in arrays:
-        mask = (Q == 0).astype(int)
+        mask = (Q == 0)*1
         Q = mask * arr + Q
 
     return Q
@@ -129,9 +135,11 @@ def star_channel(n: int,
 
     :param n: number of nodes/messages
     :param e: error (probability of departing from original message)
+
+    :return: Numpy array of transition probabilities
     """
 
-    err = 1/(n-1)
+    err = e/(n-1)
 
     hub_probs: np.ndarray = np.array([1-err] + [err]*(n-1))
     spoke_probs: list = list()
@@ -146,21 +154,4 @@ def star_channel(n: int,
 
     return Q
 
-# def lattice(h: int,
-#             e: float) -> np.ndarray:
-#
-#     """
-#     Generate a lattice-shaped channel of height enad width h initial node is in the center.
-#     Error of dparting is the same for hub and spokes.
-#
-#     :param n: number of nodes/messages
-#     :param e: error (probability of departing from original message)
-#     """
-
-        
-
-# class Channel:
-#
-#     def __init__(self,
-#                  name: str):
 
