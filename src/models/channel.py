@@ -139,7 +139,7 @@ def star_channel(n: int,
     :return: Numpy array of transition probabilities
     """
 
-    hub_err = e/(n-1)
+    err = e/(n-1)
 
     hub_probs: np.ndarray = np.array([1-e] + [err]*(n-1))
     spoke_probs: list = list()
