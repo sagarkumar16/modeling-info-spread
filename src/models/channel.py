@@ -130,8 +130,8 @@ def star_channel(n: int,
                  e: float) -> np.ndarray:
 
     """
-    Generate a star-shaped channel (one node with n-1 degree) where the hub node is message 0.
-    Error of dparting is the same for hub and spokes.
+    Generate a star-shaped channel (one node with n-1 degree) where the hub node is always message 0.
+    Error of departing is the same for hub and spokes.
 
     :param n: number of nodes/messages
     :param e: error (probability of departing from original message)
@@ -139,19 +139,87 @@ def star_channel(n: int,
     :return: Numpy array of transition probabilities
     """
 
-    err = e/(n-1)
+    hub_err = e/(n-1)
 
-    hub_probs: np.ndarray = np.array([1-err] + [err]*(n-1))
+    hub_probs: np.ndarray = np.array([1-e] + [err]*(n-1))
     spoke_probs: list = list()
 
     for i in range(1,n):
-        i_probs: np.ndarray = np.array([err] + [0]*(n-1))
-        i_probs[i] = 1 - err
+        i_probs: np.ndarray = np.array([e] + [0]*(n-1))
+        i_probs[i] = 1 - e
         spoke_probs.append(i_probs)
 
     all_probs = [hub_probs] + spoke_probs
-    Q: np.ndarray = np.concatenate(all_probs)
+    Q: np.ndarray = np.array(all_probs)
 
     return Q
 
 
+def simplex_channel(n: int,
+                    e: float) -> np.ndarray:
+
+    """
+    Generates a symmetric n-simplex-shaped channel.
+
+    :param n: number of nodes/messages
+    :param e: error (probability of departing from original message)
+
+    :return: Numpy array of transition probabilities
+    """
+
+    err = e / (n - 1)
+
+    adj: np.ndarray = np.ones((n,n))
+    Q: np.ndarray = err * adj
+
+    np.fill_diagonal(Q, 1-e)
+
+    return Q
+
+
+def paw_channel(e: float) -> np.ndarray:
+
+    """
+    Generates a symmetric "paw graph" channel in which 3 nodes/messages for a triangle, and an additional node/message is attached
+    to node 2
+
+    :param e: error (probability of departing from original message)
+    :return: Numpy array of transition probabilities
+    """
+
+    adj = np.array([[0, 1, 1, 0],
+                    [1, 0, 1, 0],
+                    [1, 1, 0, 1],
+                    [0, 0, 1, 0]])
+
+    degrees = np.sum(adj, axis=1)
+
+    errors = e / degrees
+
+    Q = adj * errors.reshape(-1,1)
+
+    np.fill_diagonal(Q, 1-e)
+
+    return Q
+
+
+def symmetric_graphical_channel(a: np.ndarray,
+                                e: float):
+
+    """
+    Create a valid transition matrix from an arbitrary adjacency matrix, a
+
+    :param a: adjacency matrix
+    :param e: error (probability of departing from original message)
+    :return: Numpy array of transition probabilities
+    """
+
+    degrees = np.sum(a, axis=1)
+
+    errors = e / degrees
+
+    Q = a * errors.reshape(-1,1)
+
+    np.fill_diagonal(Q, 1-e)
+
+    return Q
