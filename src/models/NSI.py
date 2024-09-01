@@ -74,7 +74,7 @@ class NSI:
                  ) -> None:
 
         """
-        Creates an instance of the Noisy Susceptible Infected Model
+        Creates an instance of the Discrete Noisy Susceptible Infected Model
         :param N: populations size
         :param T: time to run model
         :param P: communication channel
@@ -257,3 +257,44 @@ def load_sim(filepath) -> ModelOutput:
     inf = np.load(filepath)
 
     return ModelOutput(infected=inf)
+
+
+
+""" Class-Independent Functions"""
+
+def mutual_info(list_of_arrays, px) -> float:
+    
+    """
+    Calculates the mutual information for a given model output and input source distribution.
+    
+    :param list_of_arrays: Model output arrays of dimension the size of the alphabet. 
+    :param px: Probability distribution over source states.
+    
+    :returns: Mutual Information 
+    """
+    
+    # Ensure the inputs are normalized
+    assert np.isclose(np.sum(X), 1.0), "X should be normalized"
+    assert np.all(np.isclose(np.sum(M, axis=1), 1.0)), "Rows of M should sum to 1"
+
+    num_x = M.shape[0]
+    num_y = M.shape[1]
+
+    # Calculate p(y)
+    p_y = np.dot(X, M)
+
+    # Calculate p(x, y)
+    p_xy = np.zeros((num_x, num_y))
+    for x in range(num_x):
+        for y in range(num_y):
+            p_xy[x, y] = X[x] * M[x, y]
+
+    def log_term(x, y):
+        if p_xy[x, y] > 0 and p_y[y] > 0:  # Ensure we don't divide by zero or take log of zero
+            log_value = np.log2(p_xy[x, y] / (X[x] * p_y[y]))
+            return log_value
+        return 0
+
+    I = np.sum([p_xy[x, y] * log_term(x, y) for x in range(num_x) for y in range(num_y)])
+    
+    return I
