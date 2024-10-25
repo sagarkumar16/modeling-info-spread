@@ -262,17 +262,7 @@ def load_sim(filepath) -> ModelOutput:
 
 """ Class-Independent Functions"""
 
-def mutual_info(list_of_arrays, px) -> float:
-    
-    """
-    Calculates the mutual information for a given model output and input source distribution.
-    
-    :param list_of_arrays: Model output arrays of dimension the size of the alphabet. 
-    :param px: Probability distribution over source states.
-    
-    :returns: Mutual Information 
-    """
-    
+def mutual_info(M, X):
     # Ensure the inputs are normalized
     assert np.isclose(np.sum(X), 1.0), "X should be normalized"
     assert np.all(np.isclose(np.sum(M, axis=1), 1.0)), "Rows of M should sum to 1"
