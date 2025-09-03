@@ -2,6 +2,8 @@ import numpy as np
 from tqdm import tqdm
 from tqdm.notebook import tqdm as tqdm_nb
 import random
+import networkx as nx
+#from SamplableSet import SamplableSet
 
 from typing import List, Tuple, Dict
 
@@ -134,6 +136,134 @@ class NSI:
 
         :param beta: transmissibility
         :param k: average degree
+        :param filepath: File to store simulation results. If none provided, no file is written. (Default = None)
+        :param seedI: seed distribution (default 1 in message 0).
+        :param density: Output infected vectors as fractions of the population
+        :param track_comm: track successful communications
+        :param pbar_on: turn on progress bar
+        :param notebook: if pbar_on is True, indicates whether to use the notebook implementation of tqdm
+        :return: infected vectors at each time step
+        """
+
+        # mutable dictionary of the state/message received by each node
+        population_dictionary: Dict[int, int] = {n: -1 for n in range(self.N)}
+
+        if seedI is None:
+            seed: np.ndarray = np.zeros(self.P.shape[0])
+            seed[0] = 1  # seed one node with message 0
+
+        else:
+            seed: np.ndarray = seedI
+
+        inf: List[np.ndarray] = [seed]
+
+        # initialize list to successful communications
+        comms = {n: [] for n in range(self.N)}
+
+        # setting seed(s)
+        for d, seed_count in enumerate(seed):
+            for _ in range(int(seed_count)):
+                node = random.randint(0, self.N - 1)
+                population_dictionary[node] = d
+                comms[node].append((node, d))
+
+        # progress bar
+        if pbar_on:
+            if notebook:
+                pbar = tqdm_nb(range(1, self.T))
+            else:
+                pbar = tqdm(range(1, self.T))
+        else:
+            pbar = range(self.T)
+
+        # running simulation
+        for _ in pbar:
+
+            # initialized array
+            it = np.array([0] * self.P.shape[0])
+
+            # infected nodes
+            valid_nodes = np.array([node for node in population_dictionary.keys() if population_dictionary[node] != -1])
+
+            # shuffle valid nodes
+            np.random.shuffle(valid_nodes)
+
+            # select k random neighbors for each node
+            valid_neighbors = np.random.randint(self.N, size=(self.N, k))
+
+            # shifting by one to allow boolean mask
+            valid_neighbors = valid_neighbors + np.ones(valid_neighbors.shape, dtype=np.uint8)
+
+            # defining connection probabilities
+            valid_r = np.random.rand(self.N, k)
+
+            # successful communication, shifted back down so that missed communication is flagged by value of -1
+            valid_neighbors = ((valid_r < beta) * valid_neighbors) - np.ones(valid_neighbors.shape, dtype=np.uint8)
+
+            for n, neighbors in zip(valid_nodes, valid_neighbors):
+                n_state = population_dictionary[n]
+
+                for ni in neighbors:
+
+                    if not (ni < 0):
+                        ni_state = population_dictionary[ni]
+
+                        if ni_state < 0:
+                            new_state = error_message(n_state, self.P)
+                            population_dictionary[ni] = new_state
+
+                            comms[ni] = comms[n].copy()
+                            comms[ni].append((ni, new_state))
+
+                        else:
+                            pass
+                    else:
+                        pass
+
+            # bincount doesn't like negative values, so we shift everything up by one
+            shifted_states = np.array(list(population_dictionary.values())) + np.ones(len(population_dictionary),
+                                                                                      dtype=np.uint8)
+            cts = np.bincount(shifted_states, minlength=self.P.shape[0] + 1)
+
+            for idx, x in enumerate(cts[0:]):
+                it[idx - 1] = x  # ignoring 0 (which used to be -1), shifting back down, and assigning count
+
+            inf.append(it)
+
+        if density:
+            inf = [i / self.N for i in inf]
+
+        out = ModelOutput(infected=inf)
+
+        if filepath is not None:
+            np.savez_compressed(filepath + ".npz", inf)
+
+        if track_comm:
+            return out, comms
+
+        else:
+            return out
+        
+        
+    def heterogeneous_simulation(self,
+                                 beta: float,
+                                 k: int,
+                                 G: nx.Graph,
+                                 filepath: str = None,
+                                 seedI: np.ndarray = None,
+                                 density: bool = True,
+                                 track_comm: bool = False,
+                                 pbar_on: bool = True,
+                                 notebook: bool = False) -> None or ModelOutput or Tuple[ModelOutput, dict]:
+
+        """
+        Runs the heterogeneous population simulation of the NSI model as described in the paper.
+
+        Note: -1 is the "susceptible" state, k must be in simulations
+
+        :param beta: transmissibility
+        :param k: average degree
+        :param G: population structure graph
         :param filepath: File to store simulation results. If none provided, no file is written. (Default = None)
         :param seedI: seed distribution (default 1 in message 0).
         :param density: Output infected vectors as fractions of the population
