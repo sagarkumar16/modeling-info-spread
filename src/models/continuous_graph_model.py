@@ -325,3 +325,64 @@ class TwoStrainGillespie:
             "I2_mean": I2_mean, "I2_lo": I2_lo, "I2_hi": I2_hi,
             "It_mean": It_mean, "It_lo": It_lo, "It_hi": It_hi,
         }
+
+def two_state_pairwise(t, x, n, k, r):
+    """
+    x: State vector
+    t: time
+    n: population size 
+    r: channel rates
+    """
+    i1, i2, si1, si2, ss = x
+    s = n - i1 - i2
+
+    di1 = r[0,0]*si1 + r[0,1]*si2
+    di2 = r[1,0]*si1 + r[1,1]*si2
+    dsi1 = ((k-1)*ss/(k*s))*(r[0,0]*si1 + r[0,1]*si2) - r[0,0]*si1 - r[1,0]*si1 - \
+           ((k-1)/(k*s))*(r[0,0]*si1**2 + r[1,0]*si1**2 + r[0,1]*si1*si2 + r[1,1]*si1*si2)
+    dsi2 = ((k-1)*ss/(k*s))*(r[1,0]*si1 + r[1,1]*si2) - r[0,1]*si2 - r[1,1]*si2 - \
+           ((k-1)/(k*s))*(r[0,1]*si2**2 + r[1,1]*si2**2 + r[1,0]*si1*si2 + r[0,0]*si1*si2)
+    dss = ((1-k)*2*ss/(k*s))*(r[0,0]*si1 + r[1,0]*si1 + r[0,1]*si2 + r[1,1]*si2)
+
+    return [di1, di2, dsi1, dsi2, dss]
+
+
+def poisson_graph(n, lam, draw=False):
+    """
+    Create a simple NetworkX graph with a Poisson degree distribution.
+
+    Parameters
+    ----------
+    n : int
+        Number of nodes.
+    lam : float
+        Mean of the Poisson degree distribution.
+    draw : bool, optional (default=False)
+        If True, plots the generated graph.
+
+    Returns
+    -------
+    G : networkx.Graph
+        A simple undirected graph with approximately Poisson degree distribution.
+    """
+    # 1. Sample degrees
+    degrees = np.random.poisson(lam, n)
+
+    # Ensure sum of degrees is even
+    if sum(degrees) % 2 != 0:
+        degrees[0] += 1
+
+    # 2. Build graph using configuration model
+    G = nx.configuration_model(degrees)
+
+    # 3. Convert to simple graph (no parallel edges/self-loops)
+    G = nx.Graph(G)
+    G.remove_edges_from(nx.selfloop_edges(G))
+
+    # 4. Optionally draw
+    if draw:
+        plt.figure(figsize=(6, 6))
+        nx.draw(G, node_size=50, with_labels=False)
+        plt.show()
+
+    return G
